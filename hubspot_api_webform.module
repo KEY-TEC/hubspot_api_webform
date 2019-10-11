@@ -1,0 +1,7 @@
+<?php
+
+/**
+ * @file
+ * Sends Webform results to HubSpot's Forms API.
+ */
+

@@ -1,0 +1,4 @@
+services:
+  hubspot_api_webform.form_manager:
+    class: Drupal\hubspot_api_webform\HubspotFormManager
+    arguments: ['@logger.factory','@hubspot_api.manager']
