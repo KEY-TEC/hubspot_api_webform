@@ -17,8 +17,8 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
  * Webform submission remote post handler.
  *
  * @WebformHandler(
- *   id = "hubspot_webform_handler",
- *   label = @Translation("HubSpot Webform Handler"),
+ *   id = "hubspot_api_webform_handler",
+ *   label = @Translation("HubSpot Webform Handler (hubspot_api)"),
  *   category = @Translation("External"),
  *   description = @Translation("Posts webform submissions to a Hubspot
  *   form."),
@@ -150,6 +150,7 @@ class HubspotWebformHandler extends WebformHandlerBase {
           ]),
           '#type' => 'details',
           '#tree' => TRUE,
+          '#weight' => 0,
           '#states' => [
             'visible' => [
               ':input[name="settings[hubspot_form]"]' =>
@@ -160,7 +161,7 @@ class HubspotWebformHandler extends WebformHandlerBase {
           ],
         ];
 
-        $webform = $this->getWebform()->getElementsDecoded();
+        $webform = $this->getWebform()->getElementsDecodedAndFlattened();
 
         foreach ($webform as $form_key => $component) {
           if ($component['#type'] !== 'markup') {
@@ -188,6 +189,17 @@ class HubspotWebformHandler extends WebformHandlerBase {
     $json_fields = [];
     $operation = ($update) ? 'update' : 'insert';
     $post_data = $this->getPostData($operation, $webform_submission);
+    $entity_type = isset($post_data['entity_type']) ? $post_data['entity_type'] : NULL;
+    $entity_id = isset($post_data['entity_id']) ? $post_data['entity_id'] : NULL;
+    $url = '';
+    $title = '';
+    try {
+      $entity = \Drupal::entityTypeManager()->getStorage($entity_type)->load($entity_id);
+      $url = $entity->toUrl()->toString();
+      $title = $entity->label();
+    } catch (\Exception $e) {
+      // DO NOTHING FOR NOW.
+    }
     $form_guid = $this->configuration['hubspot_form'];
     $portal_id = $this->configuration['hubspot_portal_id'];;
     $fields = $this->configuration['hubspot_mapping'];
@@ -197,7 +209,7 @@ class HubspotWebformHandler extends WebformHandlerBase {
         $json_fields[$hubspot_name] = $post_data[$webform_name];
       }
     }
-    $this->hubspotFormManager->submit($portal_id, $form_guid, $json_fields);
+    $this->hubspotFormManager->submit($portal_id, $form_guid, $json_fields, $url, $title);
   }
 
   /**

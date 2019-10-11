@@ -39,7 +39,7 @@ class HubspotFormManager {
    * @param \Drupal\webform\WebformSubmissionInterface $webform_submission
    *   The webform submission to be posted.
    */
-  public function submit($portal_id, $form_guid, array $fields) {
+  public function submit($portal_id, $form_guid, array $fields, $page_uri = NULL, $page_title = NULL) {
     $json_fields = [];
     foreach ($fields as $name => $value) {
       $json_fields[] = [
@@ -53,8 +53,8 @@ class HubspotFormManager {
       'fields' => $json_fields,
       'context' => [
         "hutk" => $cookie,
-        "pageUri" => "www.example.com/page",
-        "pageName" => "Example page",
+        "pageUri" => $page_uri,
+        "pageName" => $page_title,
       ],
       'legalConsentOptions' => [
         'consent' => [
