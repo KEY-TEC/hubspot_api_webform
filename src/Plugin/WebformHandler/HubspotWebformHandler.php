@@ -118,14 +118,12 @@ class HubspotWebformHandler extends WebformHandlerBase {
     $hubspot_forms = $this->hubspotManager->getHandler()->forms()->all();
     $hubspot_form_options = [];
     foreach ($hubspot_forms->toArray() as $hubspot_form) {
+      $hubspot_form_fields = $this->hubspotManager->getHandler()->forms()->getFields($hubspot_form['guid'])->getData();
       $hubspot_form_options[$hubspot_form['guid']] = $hubspot_form['name'];
       $hubspot_field_options[$hubspot_form['guid']]['fields']['--donotmap--'] = "Do Not Map";
-      foreach ($hubspot_form['formFieldGroups'] as $hubspot_group) {
-        foreach ($hubspot_group['fields'] as $hubspot_field) {
-          $hubspot_field_options[$hubspot_form['guid']]['fields'][$hubspot_field['name']] = ($hubspot_field['label'] ? $hubspot_field['label'] : $hubspot_field['name']) . ' (' . $hubspot_field['fieldType'] . ')';
-        }
+      foreach ($hubspot_form_fields as $hubspot_form_field) {
+        $hubspot_field_options[$hubspot_form['guid']]['fields'][$hubspot_form_field->name] = ($hubspot_form_field->label ? $hubspot_form_field->label : $hubspot_form_field->name) . ' (' . $hubspot_form_field->fieldType . ')';
       }
-
     }
     $form['hubspot_form'] = [
       '#title' => $this->t('HubSpot form'),
@@ -138,7 +136,8 @@ class HubspotWebformHandler extends WebformHandlerBase {
       '#title' => $this->t('HubSpot Portal ID'),
       '#type' => 'textfield',
       '#default_value' => $this->configuration['hubspot_portal_id'],
-      '#weight' => -9
+      '#weight' => -9,
+      '#required' => TRUE
     ];
 
 
@@ -206,6 +205,9 @@ class HubspotWebformHandler extends WebformHandlerBase {
 
     foreach ($fields as $webform_name => $hubspot_name) {
       if (isset($post_data[$webform_name]) && $hubspot_name !== '--donotmap--') {
+        if (is_array($post_data[$webform_name])) {
+          $post_data[$webform_name] = join(";", $post_data[$webform_name]);
+        }
         $json_fields[$hubspot_name] = $post_data[$webform_name];
       }
     }

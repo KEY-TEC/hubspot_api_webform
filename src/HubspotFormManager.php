@@ -76,7 +76,7 @@ class HubspotFormManager {
       $this->hubspotManager->getHandler()->client->client->request('post', $endpoint, $options, NULL, FALSE);
       $this->loggerFactory->get('hubspot_api_webform')->notice('Webform "%form" results succesfully submitted to HubSpot. Response: @msg', [
           '@msg' => 'strip_tags($data)',
-          '%form' => '$form_title',
+          '%form' => $page_title,
         ]
       );
       $this->loggerFactory->get('hubspot_api_webform')
