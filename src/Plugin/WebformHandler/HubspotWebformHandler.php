@@ -108,7 +108,11 @@ class HubspotWebformHandler extends WebformHandlerBase {
    * {@inheritdoc}
    */
   public function defaultConfiguration() {
-    return ['hubspot_form' => NULL, 'hubspot_mapping' => [], 'hubspot_portal_id' => NULL];
+    return [
+      'hubspot_form' => NULL,
+      'hubspot_mapping' => [],
+      'hubspot_portal_id' => NULL,
+    ];
   }
 
   /**
@@ -118,7 +122,10 @@ class HubspotWebformHandler extends WebformHandlerBase {
     $hubspot_forms = $this->hubspotManager->getHandler()->forms()->all();
     $hubspot_form_options = [];
     foreach ($hubspot_forms->toArray() as $hubspot_form) {
-      $hubspot_form_fields = $this->hubspotManager->getHandler()->forms()->getFields($hubspot_form['guid'])->getData();
+      $hubspot_form_fields = $this->hubspotManager->getHandler()
+        ->forms()
+        ->getFields($hubspot_form['guid'])
+        ->getData();
       $hubspot_form_options[$hubspot_form['guid']] = $hubspot_form['name'];
       $hubspot_field_options[$hubspot_form['guid']]['fields']['--donotmap--'] = "Do Not Map";
       foreach ($hubspot_form_fields as $hubspot_form_field) {
@@ -130,14 +137,14 @@ class HubspotWebformHandler extends WebformHandlerBase {
       '#type' => 'select',
       '#options' => $hubspot_form_options,
       '#default_value' => $this->configuration['hubspot_form'],
-      '#weight' => -10
+      '#weight' => -10,
     ];
     $form['hubspot_portal_id'] = [
       '#title' => $this->t('HubSpot Portal ID'),
       '#type' => 'textfield',
       '#default_value' => $this->configuration['hubspot_portal_id'],
       '#weight' => -9,
-      '#required' => TRUE
+      '#required' => TRUE,
     ];
 
 
@@ -168,8 +175,19 @@ class HubspotWebformHandler extends WebformHandlerBase {
             if ($this->configuration['hubspot_form'] == $key) {
               $default_value = isset($this->configuration['hubspot_mapping'][$form_key]) ? $this->configuration['hubspot_mapping'][$form_key] : NULL;
             }
+
+            if (isset($component['#type']) && $component['#type'] === 'webform_address') {
+              foreach (['address', 'address_2', 'city', 'postal_code', 'country'] as $sub_key) {
+                $form[$key][$form_key. '___' . $sub_key] = [
+                  '#title' => (isset($component['#title']) ? $component['#title'] : '') . '[' . $sub_key . '] (' . $component['#type'] . ')',
+                  '#type' => 'select',
+                  '#options' => $hubspot_field_options[$key]['fields'],
+                  '#default_value' => $default_value,
+                ];
+              }
+            }
             $form[$key][$form_key] = [
-              '#title' => $component['#title'] . ' (' . $component['#type'] . ')',
+              '#title' => (isset($component['#title']) ? $component['#title'] : '') . ' (' . $component['#type'] . ')',
               '#type' => 'select',
               '#options' => $hubspot_field_options[$key]['fields'],
               '#default_value' => $default_value,
@@ -193,7 +211,9 @@ class HubspotWebformHandler extends WebformHandlerBase {
     $url = '';
     $title = '';
     try {
-      $entity = \Drupal::entityTypeManager()->getStorage($entity_type)->load($entity_id);
+      $entity = \Drupal::entityTypeManager()
+        ->getStorage($entity_type)
+        ->load($entity_id);
       $url = $entity->toUrl()->toString();
       $title = $entity->label();
     } catch (\Exception $e) {
@@ -204,11 +224,23 @@ class HubspotWebformHandler extends WebformHandlerBase {
     $fields = $this->configuration['hubspot_mapping'];
 
     foreach ($fields as $webform_name => $hubspot_name) {
-      if (isset($post_data[$webform_name]) && $hubspot_name !== '--donotmap--') {
+      if ($hubspot_name !== '--donotmap--') {
         if (is_array($post_data[$webform_name])) {
           $post_data[$webform_name] = join(";", $post_data[$webform_name]);
         }
-        $json_fields[$hubspot_name] = $post_data[$webform_name];
+        // Handle sub element like
+        if (strpos($webform_name, '___') !== FALSE) {
+            $keys = explode('___', $webform_name);
+            if (isset($post_data[$keys[0]][$keys[1]])) {
+              $json_fields[$hubspot_name] =  $post_data[$keys[0]][$keys[1]];
+            }
+        } else {
+          if (isset($post_data[$webform_name])) {
+            $json_fields[$hubspot_name] = $post_data[$webform_name];
+          }
+
+        }
+
       }
     }
     $this->hubspotFormManager->submit($portal_id, $form_guid, $json_fields, $url, $title);
@@ -237,4 +269,5 @@ class HubspotWebformHandler extends WebformHandlerBase {
 
     return $data;
   }
+
 }
