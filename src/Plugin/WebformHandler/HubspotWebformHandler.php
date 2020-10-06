@@ -214,7 +214,7 @@ class HubspotWebformHandler extends WebformHandlerBase {
       $entity = \Drupal::entityTypeManager()
         ->getStorage($entity_type)
         ->load($entity_id);
-      $url = $entity->toUrl()->toString();
+      $url = $entity->toUrl('canonical', ['absolute' => TRUE])->toString();
       $title = $entity->label();
     } catch (\Exception $e) {
       // DO NOTHING FOR NOW.
@@ -225,7 +225,7 @@ class HubspotWebformHandler extends WebformHandlerBase {
 
     foreach ($fields as $webform_name => $hubspot_name) {
       if ($hubspot_name !== '--donotmap--') {
-        if (is_array($post_data[$webform_name])) {
+        if (isset($post_data[$webform_name]) && is_array($post_data[$webform_name])) {
           $post_data[$webform_name] = join(";", $post_data[$webform_name]);
         }
         // Handle sub element like

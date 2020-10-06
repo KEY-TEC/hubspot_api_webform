@@ -48,7 +48,6 @@ class HubspotFormManager {
       ];
     }
     $cookie = \Drupal::request()->cookies->get('hubspotutk');
-    $date = new DrupalDateTime('now', 'UTC');
     $json = [
       'fields' => $json_fields,
       'context' => [
@@ -80,7 +79,7 @@ class HubspotFormManager {
         ]
       );
       $this->loggerFactory->get('hubspot_api_webform')
-        ->info('Hubspot Form');
+        ->info('Hubspot Form submitted successfull');
     } catch (\Exception $e) {
       $this->loggerFactory->get('hubspot_api_webform')
         ->critical($e->getMessage());
