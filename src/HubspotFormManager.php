@@ -54,6 +54,7 @@ class HubspotFormManager {
         "hutk" => $cookie,
         "pageUri" => $page_uri,
         "pageName" => $page_title,
+        "ipAddress" => \Drupal::request()->getClientIp()
       ],
       'legalConsentOptions' => [
         'consent' => [
