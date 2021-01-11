@@ -171,20 +171,25 @@ class HubspotWebformHandler extends WebformHandlerBase {
 
         foreach ($webform as $form_key => $component) {
           if ($component['#type'] !== 'markup') {
-            $default_value = NULL;
-            if ($this->configuration['hubspot_form'] == $key) {
-              $default_value = isset($this->configuration['hubspot_mapping'][$form_key]) ? $this->configuration['hubspot_mapping'][$form_key] : NULL;
-            }
-
             if (isset($component['#type']) && $component['#type'] === 'webform_address') {
+
               foreach (['address', 'address_2', 'city', 'postal_code', 'country'] as $sub_key) {
-                $form[$key][$form_key. '___' . $sub_key] = [
+                $subcomponent_key = $form_key. '___' . $sub_key;
+                $default_value = NULL;
+                if ($this->configuration['hubspot_form'] == $key) {
+                  $default_value = isset($this->configuration['hubspot_mapping'][$subcomponent_key]) ? $this->configuration['hubspot_mapping'][$subcomponent_key] : NULL;
+                }
+                $form[$key][$subcomponent_key] = [
                   '#title' => (isset($component['#title']) ? $component['#title'] : '') . '[' . $sub_key . '] (' . $component['#type'] . ')',
                   '#type' => 'select',
                   '#options' => $hubspot_field_options[$key]['fields'],
                   '#default_value' => $default_value,
                 ];
               }
+            }
+            $default_value = NULL;
+            if ($this->configuration['hubspot_form'] == $key) {
+              $default_value = isset($this->configuration['hubspot_mapping'][$form_key]) ? $this->configuration['hubspot_mapping'][$form_key] : NULL;
             }
             $form[$key][$form_key] = [
               '#title' => (isset($component['#title']) ? $component['#title'] : '') . ' (' . $component['#type'] . ')',
