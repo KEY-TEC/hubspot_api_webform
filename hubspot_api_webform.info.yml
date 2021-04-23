@@ -1,6 +1,7 @@
 name: 'HubSpot Webform integration'
 description: 'Provides HubSpot leads API integration with Drupal. Works with hubspot_api'
 core: 8.x
+core_version_requirement: '^8 || ^9'
 type: module
 dependencies:
   - webform:webform
