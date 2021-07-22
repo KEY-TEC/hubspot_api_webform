@@ -2,14 +2,8 @@
 
 namespace Drupal\hubspot_api_webform\Plugin\WebformHandler;
 
-use Drupal\Core\Config\ConfigFactoryInterface;
-use Drupal\Core\Entity\EntityTypeManagerInterface;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\Core\Logger\LoggerChannelFactoryInterface;
-use Drupal\hubspot_api\Manager;
-use Drupal\hubspot_api_webform\HubspotFormManager;
 use Drupal\webform\Plugin\WebformHandlerBase;
-use Drupal\webform\WebformSubmissionConditionsValidatorInterface;
 use Drupal\webform\WebformSubmissionInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
@@ -31,14 +25,14 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 class HubspotWebformHandler extends WebformHandlerBase {
 
   /**
-   * The Hubspot api mananger.
+   * The Hubspot api manager.
    *
    * @var \Drupal\hubspot_api\Manager
    */
   protected $hubspotManager;
 
   /**
-   * The Hubspot api mananger.
+   * The Hubspot api manager.
    *
    * @var \Drupal\hubspot_api_webform\HubspotFormManager
    */
@@ -121,8 +115,9 @@ class HubspotWebformHandler extends WebformHandlerBase {
   public function buildConfigurationForm(array $form, FormStateInterface $form_state) {
     $hubspot_forms = $this->hubspotManager->getHandler()->forms()->all();
     $hubspot_form_options = [];
+    $hubspot_handler = $this->hubspotManager->getHandler();
     foreach ($hubspot_forms->toArray() as $hubspot_form) {
-      $hubspot_form_fields = $this->hubspotManager->getHandler()
+      $hubspot_form_fields = $hubspot_handler
         ->forms()
         ->getFields($hubspot_form['guid'])
         ->getData();
@@ -130,6 +125,17 @@ class HubspotWebformHandler extends WebformHandlerBase {
       $hubspot_field_options[$hubspot_form['guid']]['fields']['--donotmap--'] = "Do Not Map";
       foreach ($hubspot_form_fields as $hubspot_form_field) {
         $hubspot_field_options[$hubspot_form['guid']]['fields'][$hubspot_form_field->name] = ($hubspot_form_field->label ? $hubspot_form_field->label : $hubspot_form_field->name) . ' (' . $hubspot_form_field->fieldType . ')';
+      }
+
+      // Collect legal consent options.
+      foreach ($hubspot_form['metaData'] as $metadata) {
+        if ($metadata['name'] == 'legalConsentOptions') {
+          $consent_options = json_decode($metadata['value']);
+          foreach ($consent_options->communicationConsentCheckboxes as $checkbox) {
+            $hubspot_field_options[$hubspot_form['guid']]['fields']['consent:' . $checkbox->communicationTypeId] = 'Consent: ' . $checkbox->label . ' (' . $checkbox->communicationTypeId . ')';
+          }
+          break;
+        }
       }
     }
     $form['hubspot_form'] = [
@@ -146,7 +152,6 @@ class HubspotWebformHandler extends WebformHandlerBase {
       '#weight' => -9,
       '#required' => TRUE,
     ];
-
 
     foreach ($hubspot_form_options as $key => $value) {
       if ($key != '--donotmap--') {
@@ -168,11 +173,9 @@ class HubspotWebformHandler extends WebformHandlerBase {
         ];
 
         $webform = $this->getWebform()->getElementsDecodedAndFlattened();
-
         foreach ($webform as $form_key => $component) {
-          if ($component['#type'] !== 'markup') {
+          if ($component['#type'] !== 'markup' && $component['#type'] !== 'processed_text' && $component['#type'] !== 'webform_flexbox') {
             if (isset($component['#type']) && $component['#type'] === 'webform_address') {
-
               foreach (['address', 'address_2', 'city', 'postal_code', 'country'] as $sub_key) {
                 $subcomponent_key = $form_key. '___' . $sub_key;
                 $default_value = NULL;
@@ -228,6 +231,7 @@ class HubspotWebformHandler extends WebformHandlerBase {
     $portal_id = $this->configuration['hubspot_portal_id'];;
     $fields = $this->configuration['hubspot_mapping'];
 
+    $webform_elements = $this->getWebform()->getElementsDecodedAndFlattened();
     foreach ($fields as $webform_name => $hubspot_name) {
       if ($hubspot_name !== '--donotmap--') {
         if (isset($post_data[$webform_name]) && is_array($post_data[$webform_name])) {
@@ -235,17 +239,20 @@ class HubspotWebformHandler extends WebformHandlerBase {
         }
         // Handle sub element like
         if (strpos($webform_name, '___') !== FALSE) {
-            $keys = explode('___', $webform_name);
-            if (isset($post_data[$keys[0]][$keys[1]])) {
-              $json_fields[$hubspot_name] =  $post_data[$keys[0]][$keys[1]];
-            }
-        } else {
-          if (isset($post_data[$webform_name])) {
-            $json_fields[$hubspot_name] = $post_data[$webform_name];
+          $keys = explode('___', $webform_name);
+          if (isset($post_data[$keys[0]][$keys[1]])) {
+            $json_fields[$hubspot_name] =  $post_data[$keys[0]][$keys[1]];
           }
-
         }
-
+        else if (strpos($hubspot_name, 'consent:') === 0) {
+          if ($post_data[$webform_name]) {
+            // Add consent if checked with field title (consent text).
+            $json_fields[$hubspot_name] = $webform_elements[$webform_name]['#title'];
+          }
+        }
+        else if (isset($post_data[$webform_name])) {
+          $json_fields[$hubspot_name] = $post_data[$webform_name];
+        }
       }
     }
     $this->hubspotFormManager->submit($portal_id, $form_guid, $json_fields, $url, $title);
