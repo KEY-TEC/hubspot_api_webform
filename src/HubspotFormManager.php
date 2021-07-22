@@ -41,11 +41,26 @@ class HubspotFormManager {
    */
   public function submit($portal_id, $form_guid, array $fields, $page_uri = NULL, $page_title = NULL) {
     $json_fields = [];
+    $communication_consents = [];
     foreach ($fields as $name => $value) {
-      $json_fields[] = [
-        'name' => $name,
-        'value' => $value,
-      ];
+      if (strpos($name, 'consent:') === 0) {
+        $consent_id = explode(':', $name);
+        if (count($consent_id) !== 2) {
+          continue;
+        }
+
+        $communication_consents[] = [
+          "value" => TRUE,
+          "subscriptionTypeId" => $consent_id[1],
+          "text" => $value,
+        ];
+      }
+      else {
+        $json_fields[] = [
+          'name' => $name,
+          'value' => $value,
+        ];
+      }
     }
     $cookie = \Drupal::request()->cookies->get('hubspotutk');
     $json = [
@@ -60,13 +75,7 @@ class HubspotFormManager {
         'consent' => [
           "consentToProcess" => TRUE,
           "text" => "I agree to allow Example Company to store and process my personal data.",
-          "communications" => [
-            [
-              "value" => TRUE,
-              "subscriptionTypeId" => 999,
-              "text" => "I agree to receive marketing communications from Example Company.",
-            ],
-          ],
+          "communications" => $communication_consents,
         ],
       ],
     ];
